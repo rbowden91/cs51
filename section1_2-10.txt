@@ -1,0 +1,307 @@
+The "type" keyword is used for two different things:
+
+1) Defining aliases:
+    type year = int
+    type lat_lng = float * float
+
+After these lines, "year" and "int" can be used interchangeably:
+
+    let (x : year) = 3
+    let (y : int) = x
+
+2) More importantly, defining algebraic data types (the book calls them
+"Variants", since records are also technically algebraic data types):
+
+    type color = Red | Yellow | Blue | Other of string
+
+Algebraic data types are what we have been using "match" to break apart
+throughout the course.  lists and options are just algebraic data types with
+some special built-in syntax.
+
+"Red", "Yellow", "Blue", and "Other" are called "constructors" of the type
+color. This is because we can use them to construct values of type color:
+
+    let (x : color) = Red
+    let (y : color) = Other "Chartreuse"
+
+Notice that a constructor takes optionally one argument (for type color, the
+only constructor that takes an argument is Other, which takes a string as an
+argument). Really, though, the one-argument limitation doesn't limit us, since
+we can just use tuples to take as many values as we want, e.g. "Foo of int *
+string * char * float".
+
+Remember that algebraic datatypes can also be defined recursively:
+
+    type sum_expression = Float of float
+                        | Sum of sum_expression * sum_expression
+
+    let (x : sum_expression) = Sum(Sum(Float 3.14, Float 2.5), Float 1.9)
+
+x effectively represents "(3.14 + 2.5) + 1.9"
+
+Note that the following would not be valid:
+
+    let (x : sum_expression) = Sum(Sum(3.14, 2.5), 1.9)
+
+Because the argument to Sum must be of type sum_expression * sum_expression, and
+we are passing plain floats.
+
+===============================================================================
+
+Higher-order functions:
+
+1) A function that returns a function (so, pretty much any function that takes
+multiple arguments, since OCaml allows us to do partial application).
+
+2) More importantly, a function that takes a function as an argument. Think map,
+fold_right, and filter as prototypical examples.
+
+Remember that fold_right is the most general of these three functions. You can
+implement map and filter using fold_right (try!). You cannot implement
+fold_right using map or filter. So, if an exam asks "which of map, filter, or
+fold_right would you use to implement this?", if the answer is "map" or
+"filter", then the answer is *also* fold_right.
+
+1) List.filter
+
+It's signature is:
+'a list -> f:('a -> bool) -> 'a list
+
+filter takes in a list and a function and returns a list with only the elements
+that return true when passed to the function.
+
+List.filter ~f:(fun x -> x > 4) [1;2;3;4;5;6;7]
+
+This will return the list [5;6;7], since those are the only elements for which
+(fun x -> x > 4) returns true.
+
+2) List.map
+
+It's signature is:
+'a list -> f:('a -> 'b) -> 'b list
+
+map takes in a list and a function, returning a list with the function applied
+to each element in the original list.
+
+List.map ~f:(fun x -> x * 3) [1;2;3;4]
+
+This returns the list [3;6;9;12], since the function (fun x -> x * 3) passed the
+first element of the original list returns 3, the function passed the second
+element returns 6, and so on.
+
+List.map ~f:float [1;2;3;4]
+
+This returns the list [1.;2.;3.;4.], i.e. each element in the list has been
+converted to a float.
+
+3) List.fold_right
+
+It's signature is:
+
+'a list -> f:('a -> 'b -> 'b) -> init:'b -> 'b
+
+fold_right is the most powerful of these three higher-order functions. Notice
+that with map, we necessarily return a list of the exact same length as the
+original list (this is a good way to see if you can use map for a problem).
+filter necessarily returns a list that is a subset of the original list (you
+can't even change or re-order any of the values). Unlike map and filter, which
+only focus on a single element of the list completely independent from the rest
+of the list, fold_right is able to combine elements of the lists in interesting
+ways.
+
+Let's walk through how you can reason through any problem with fold_right. As a
+concrete example, let's walk through implementing a function that returns the
+length of a list.
+
+let length (lst : 'a list) =
+  List.fold_right ~f:(???) ~init:(???) lst
+
+First, think about what length should return if passed the empty list. This is
+the base case. The length of an empty list is zero, and so that is what we pass
+for init:
+
+let length (lst : 'a list) =
+  List.fold_right ~f:(???) ~init:0 lst
+
+Now, the function that fold_right takes as an argument itself takes two
+arguments:
+
+
+let length (lst : 'a list) =
+  List.fold_right ~f:(fun x y -> ???) ~init:0 lst
+
+What are these arguments? "x" is a given element of the list, and "y" is the
+remainder of the list already folded over. So take the list [5;2;1;4] as an
+example. The first element of the list is our x, so x is 5. y is the rest of the
+list already folded over. So what is the length of [2;1;4]? It's 3. So, x is 5,
+and y is 3, and we want to combine the values in such a way that we get the
+expected length of [5;2;1;4]. Now, we just need to fill in the question marks.
+What should we do?
+
+let length (lst : 'a list) =
+  List.fold_right ~f:(fun x y -> y + 1) ~init:0 lst
+
+In this particular example, the value of x was irrelevant. We just know that the
+length of the rest of the list was y, and we want to add 1 to that to count x in
+the length. In fact, since x is irrelevant, we should do:
+
+let length (lst : 'a list) : int =
+  List.fold_right ~f:(fun _ y -> y + 1) ~init:0 lst
+
+
+Let's work through another example. This time, we'll want to implement a
+function that gives us the sum of the ints in an int list:
+
+let sum (lst : int list) : int =
+  List.fold_right ~f:(fun x y -> ???) ~init:(???) lst
+
+I can fill in all of the above without even thinking, since that is the template
+that List.fold_right will take every time. Now, what should the sum of an empty
+list return? A natural answer is 0, so that is what we'll specify for init:
+
+let sum (lst : int list) : int =
+  List.fold_right ~f:(fun x y -> ???) ~init:0 lst
+
+Now, take a concrete list again. Let's use [4;1;5;4]. x is the first element of
+the list, and y is the rest of the list already folded_over (i.e. already
+summed). So x is 4, and y is 10. Now, how do I combine these two values to get
+the expected sum of the list [4;1;5;4], which is 14? I just add them!
+
+let sum (lst : int list) : int =
+  List.fold_right ~f:(fun x y -> x + y) ~init:0 lst
+
+
+Now I can make this a bit cleaner, since my anonymous function is really the
+same as the function (+):
+
+let sum (lst : int list) : int =
+  List.fold_right ~f:(+) ~init:0 lst
+
+And I can also get rid of the argument to sum, thanks to partial application of
+the fold_right function:
+
+let sum : int list -> int =
+  List.fold_right ~f:(+) ~init:0
+
+===============================================================================
+
+Partial application:
+
+You should know how partial application works, and why we can reduce:
+
+let times_3 lst = List.map ~f:(( * ) 3) lst
+
+to
+
+let times_3' = List.map ~f:(( * ) 3)
+
+Visually, I can immediately see that I can do this, since, if I split the line
+at the equals sign, I see lst is at the far right of both sides. More
+concretely, "List.map" takes 2 arguments: a list and a function. When I say
+"List.map ~f:(( * ) 3)", I'm only passing it one of its two arguments. The type
+of this expression is "int list -> int list". So, it is a function that takes an
+int list and returns an int list. times_3' is a variable that is being set equal
+to this. So, times_3' is a function that takes an int list and returns an int
+list.
+
+===============================================================================
+
+Polymorphism
+
+We'll go into this a bit more next week when we look into the type derivation of
+List.fold_right and List.map, but remember that polymorphism allows us to write
+functions that take general types. For example, the type of our length function
+above is:
+
+'a list -> int
+
+It doesn't matter whether it is an int list, a string list, or an (int * char)
+option list, length should still be able to find the length the list.
+
+===============================================================================
+
+Simplifying match cases:
+
+1) match as deeply as possible when you can. Using the "favmovie" example from
+the section notes, this:
+
+let rec favmovie (lst: favorite list) : string option =
+  match lst with
+  | [] -> None
+  | (Movie m)::_ -> Some m
+  | _::tl -> favmovie tl
+
+is preferred over:
+
+let rec favmovie (lst: favorite list) : string option =
+  match lst with
+  | [] -> None
+  | hd::tl ->
+    match hd with
+    | Movie m -> Some m
+    | _ -> favmovie tl
+
+Notice in the first case, I'm breaking apart the head of the list into a Movie
+in the same pattern match that I'm breaking apart the list into a head and tail.
+
+2) Potentially use tuples in order to reduce the number of matches. From the
+section notes min_option example, this:
+
+let realequal (a: realnum) (b: realnum) : bool =
+  match (a, b) with
+  | (Int a1, Int b1) -> a1 = b1
+  | (Float a1, Float b1) -> a1 = b1
+  | (Int a1, Float b1) -> (Float.of_int a1) = b1
+  | (Float a1, Int b1) -> a1 = (Float.of_int b1)
+
+is preferred over:
+
+let realequal (a: realnum) (b: realnum) : bool =
+  match a with
+  | Int a1 ->
+    (match b with
+    | Int b1 -> a1 = b1
+    | Float b1 -> Float.of_int a1 = b1)
+  | Float a1 ->
+    (match b with
+    | Int b1 -> a1 = Float.of_int a1 = b1
+    | Float b1 -> a1 = b1)
+
+3) Collapse match cases when you can:
+
+let realequal (a: realnum) (b: realnum) : bool =
+  match (a, b) with
+  | (Int a1, Int b1) -> a1 = b1
+  | (Float a1, Float b1) -> a1 = b1
+  | (Int a1, Float b1) -> (Float.of_int a1) = b1
+  | (Float a1, Int b1) -> a1 = (Float.of_int b1)
+
+is equivalent to
+
+let realequal (a: realnum) (b: realnum) : bool =
+  match (a, b) with
+  | (Int a, Int b)
+  | (Float a, Float b) -> a = b
+  | (Int i, Float f)
+  | (Float f, Int i) -> f = (Float.of_int i)
+
+4) Use underscores where appropriate, which can even reduce the number of match
+cases required. This:
+
+let min_option (x: int option) (y: int option) : int option =
+  match (x, y) with
+  | (Some x', Some y') -> Some (min x' y')
+  | (_, None) -> x
+  | (None, _) -> y
+
+is preferred over:
+
+let min_option (x: int option) (y: int option) : int option =
+  match (x, y) with
+  | (Some x', Some y') -> Some (min x' y')
+  | (Some _, None) -> x
+  | (None, Some _) -> y
+  | (None, None) -> None
+
+Notice that the first min_option has 3 cases, but has the exact same
+functionality as the latter.
