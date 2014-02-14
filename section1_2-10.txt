@@ -64,7 +64,7 @@ fold_right would you use to implement this?", if the answer is "map" or
 
 1) List.filter
 
-It's signature is:
+Its signature is:
 'a list -> f:('a -> bool) -> 'a list
 
 filter takes in a list and a function and returns a list with only the elements
@@ -77,7 +77,7 @@ This will return the list [5;6;7], since those are the only elements for which
 
 2) List.map
 
-It's signature is:
+Its signature is:
 'a list -> f:('a -> 'b) -> 'b list
 
 map takes in a list and a function, returning a list with the function applied
@@ -96,7 +96,7 @@ converted to a float.
 
 3) List.fold_right
 
-It's signature is:
+Its signature is:
 
 'a list -> f:('a -> 'b -> 'b) -> init:'b -> 'b
 
